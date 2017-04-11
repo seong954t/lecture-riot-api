@@ -6,13 +6,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.JacksonJsonParser;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
-import univ.lecture.riotapi.model.Summoner;
+import univ.lecture.riotapi.model.EquationData;
 
 import java.io.UnsupportedEncodingException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 
 /**
@@ -25,29 +29,29 @@ public class RiotApiController {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Value("${riot.api.endpoint}")
-    private String riotApiEndpoint;
+    @Value("${endpoint}")
+    private String Endpoint;
 
-    @Value("${riot.api.key}")
-    private String riotApiKey;
+    @RequestMapping(value = "/calc",  method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    @ResponseBody
+    public EquationData calEquation(@RequestBody String equation) throws UnsupportedEncodingException {
+        final String url = Endpoint;
+        Calculator cal = new Calculator();
 
-    @RequestMapping(value = "/summoner/{name}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-    public Summoner querySummoner(@PathVariable("name") String summonerName) throws UnsupportedEncodingException {
-        final String url = riotApiEndpoint + "/summoner/by-name/" +
-                summonerName +
-                "?api_key=" +
-                riotApiKey;
+        String StringTime   = new SimpleDateFormat("HHmmss").format(new Date());
+        int IntegerTime = Integer.parseInt(StringTime);
+        String request = "{\""+equation+"\":{\"teamId\":4,\"now\":"+IntegerTime+",\"result\":"+cal.calculate(equation)+"}}";
+        String response = "{\"SendData\":"+restTemplate.postForObject(url, request, String.class)+"}";
+        Map<String, Object> parsedMap = new JacksonJsonParser().parseMap(request);
 
-        String response = restTemplate.getForObject(url, String.class);
-        Map<String, Object> parsedMap = new JacksonJsonParser().parseMap(response);
-
-        parsedMap.forEach((key, value) -> log.info(String.format("key [%s] type [%s] value [%s]", key, value.getClass(), value)));
-
-        Map<String, Object> summonerDetail = (Map<String, Object>) parsedMap.values().toArray()[0];
-        String queriedName = (String)summonerDetail.get("name");
-        int queriedLevel = (Integer)summonerDetail.get("summonerLevel");
-        Summoner summoner = new Summoner(queriedName, queriedLevel);
-
-        return summoner;
+        Map<String, Object> equationDetail = (Map<String, Object>) parsedMap.values().toArray()[0];
+        int teamId = (Integer)equationDetail.get("teamId");
+        int now = (Integer)equationDetail.get("now");
+        double result = (Double)equationDetail.get("result");
+        parsedMap = new JacksonJsonParser().parseMap(response);
+        equationDetail = (Map<String, Object>) parsedMap.values().toArray()[0];
+        String msg = (String)equationDetail.get("msg");
+        EquationData equationdata = new EquationData(teamId, now, result, msg);
+        return equationdata;
     }
 }
