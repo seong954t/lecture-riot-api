@@ -1,6 +1,8 @@
 package univ.lecture.riotapi.controller;
 
 import lombok.extern.log4j.Log4j;
+import univ.lecture.riotapi.model.EquationData;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.JacksonJsonParser;
@@ -12,11 +14,10 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
-import univ.lecture.riotapi.model.EquationData;
-
 import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -26,32 +27,29 @@ import java.util.Map;
 @RequestMapping("/api/v1")
 @Log4j
 public class RiotApiController {
-    @Autowired
-    private RestTemplate restTemplate;
+	@Autowired
+	private RestTemplate restTemplate;
 
-    @Value("${endpoint}")
-    private String Endpoint;
+	@Value("${endpoint}")
+	private String Endpoint;
 
-    @RequestMapping(value = "/calc",  method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-    @ResponseBody
-    public EquationData calEquation(@RequestBody String equation) throws UnsupportedEncodingException {
-        final String url = Endpoint;
-        Calculator cal = new Calculator();
+	@RequestMapping(value = "/calc", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+	@ResponseBody
+	public EquationData calEquation(@RequestBody String equation) throws UnsupportedEncodingException {
+		final String url = Endpoint;
+		final int teamId = 4;
 
-        String StringTime   = new SimpleDateFormat("HHmmss").format(new Date());
-        int IntegerTime = Integer.parseInt(StringTime);
-        String request = "{\""+equation+"\":{\"teamId\":4,\"now\":"+IntegerTime+",\"result\":"+cal.calculate(equation)+"}}";
-        String response = "{\"SendData\":"+restTemplate.postForObject(url, request, String.class)+"}";
-        Map<String, Object> parsedMap = new JacksonJsonParser().parseMap(request);
+		Calculator cal = new Calculator();
+		double result = cal.calculate(equation);
+		long now = System.currentTimeMillis();
+		Map<String, Object> jsonObject = new HashMap<String, Object>();
+		jsonObject.put("teamId", teamId);
+		jsonObject.put("now", now);
+		jsonObject.put("result", result);
 
-        Map<String, Object> equationDetail = (Map<String, Object>) parsedMap.values().toArray()[0];
-        int teamId = (Integer)equationDetail.get("teamId");
-        int now = (Integer)equationDetail.get("now");
-        double result = (Double)equationDetail.get("result");
-        parsedMap = new JacksonJsonParser().parseMap(response);
-        equationDetail = (Map<String, Object>) parsedMap.values().toArray()[0];
-        String msg = (String)equationDetail.get("msg");
-        EquationData equationdata = new EquationData(teamId, now, result, msg);
-        return equationdata;
-    }
+		Map<String, Object> msg = restTemplate.postForObject(url, jsonObject, HashMap.class);
+
+		EquationData equationdata = new EquationData(teamId, now, result, (String) msg.get("msg"));
+		return equationdata;
+	}
 }

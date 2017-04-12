@@ -14,7 +14,7 @@ public class EquationData {
 //    private String name;
 //    private int summonerLevel;
 	private int teamId;
-	private int now;
+	private long now;
 	private double result;
 	private String msg;
 }
